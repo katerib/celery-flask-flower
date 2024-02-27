@@ -1,20 +1,15 @@
-# Basic Flask App Template
+# Basic Celery + Flask + Flower Integration Guide
 
 ## Description
 
-This repository contains a sample Flask application intended to serve as a template for developers. By cloning this repo, you gain access to a pre-configured Flask environment, allowing for a quick development setup.
+This guide outlines the steps to integrate Celery with a Flask application and monitor tasks using Flower. It covers the setup for development environments, including starting a Redis server, initializing a Flask application, setting up Celery, and using Flower for monitoring.
 
-This Flask app relies on Python for the frontend and backend, HTML/CSS for page structure and styling, and Jinja2 for templating. 
-
+![Celery-Flask](src/static/images/setup_celery_flask.png)
 ## Deployment
 
-Create a project folder by cloning the repository and add a .venv folder within:
+Create and activate a virtual environment:
 
-    git clone https://github.com/katerib/basic-flask-app.git
-    cd basic-flask-app
-    py -e -m venv .venv
-
-Activate the virtual environment:
+    py -3 -m venv .venv
 
     .venv\Scripts\activate
 
@@ -28,43 +23,85 @@ Run the Flask app with debugging turned on (for autoreload upon changes):
 
 You can now view your app at: http://127.0.0.1:5000/
 
-## App Requirements 
+## Setup
 
-Below are some sample requirements that can be included in the app README. The template app does not meet all of these requirements in its current state.
+### Initialize Flask App 
 
-### Functional Requirements
+Set up the Flask application environment variables and start the Flask application using the following commands:
 
-1. **User Authentication**: Support for user sign-up, login, and logout functionalities.
-1. **Database Integration**: Configuration for connecting to a SQL or NoSQL database.
-1. **RESTful API**: Implementation of a RESTful API to handle CRUD operations on resources.
-1. **Form Handling**: Secure processing and validation of user input from forms.
-1. **Error Handling**: Comprehensive error handling to manage and respond to exceptions gracefully.
+**For Windows**
 
-### Non-Functional Requirements
+    $env:FLASK_APP = "src/app.py"
 
-1. **Performance**: The application should be optimized for speed and efficiency, capable of handling multiple requests per second without significant latency.
-1. **Security**: Implementations of standard security measures, including data encryption, XSS protection, and CSRF protection.
-1. **Scalability**: The architecture should support scalability, allowing for easy expansion as the user base grows.
-1. **Maintainability**: Code should be well-documented and structured to facilitate maintenance and future enhancements.
+    $env:FLASK_ENV = "development"
 
-### Additional Requirements and Future Features
+**For Unix/Linux**
 
-- **Integration with third-party services**: Outline plans for incorporating external APIs and services (e.g., payment gateways, email services).
-- **Responsive Design**: Ensuring the web application is accessible and functional across various devices and screen sizes.
-- **User Role Management**: Framework for managing different user roles and permissions within the application.
-- **Localization and Internationalization**: Support for multiple languages and regional settings.
+    export FLASK_APP=src/app.py
 
-## Planning and Development Phase
+    export FLASK_ENV=development
 
-- **Design**: Short description of design plans or link to Figma.
-- **Project Timeline**: Step into each phase of development or link to project management board.
+Note: you can now run `flask run` or `flask run --debug` instead of flask --app src/app run --debug
 
-## Additional Sections to Include
+### Test Redis Server
 
-Some additional sections to include in the README, as needed: 
+Ensure that the Redis server is running
 
-- **Project Setup**: Instructions on how to clone and set up the project environment.
-- **Directory Structure**: Overview of the repository's directory structure, explaining the purpose of key files and folders.
-- **Development Guidelines**: Best practices for contributing to the project, including code style guides, Git workflow, and review processes.
-- **Testing**: Outline the testing strategy, including unit tests, integration tests, and end-to-end tests.
-- **Deployment**: Guide on how to deploy the application to production, covering supported platforms, CI/CD pipelines, and monitoring.
+    redis-cli ping
+
+If you do not receive a "PONG" response, start the Redis server
+
+    redis-server
+
+
+### Open Three Terminals
+
+**Terminal #1: Start Celery**
+
+Navigate to the src directory to start the Celery worker
+
+    cd src
+
+    celery -A app.celery worker --pool=solo --loglevel=info -f logs/celery.log
+
+**Terminal #2: Start Flask**
+
+Start the Flask shell environment
+
+    flask shell
+
+**Terminal #3: Monitor Celery with Flower**
+
+To monitor Celery tasks and workers, start Flower in a new terminal
+
+    celery -A app.celery flower --port=5555
+
+Navigate to [http://localhost:5555](http://localhost:5555) to view the dashboard.
+
+### Send a Task to Celery 
+
+Send tasks to Celery in Terminal #2 (Flask)
+
+    from app import divide
+
+    task = divide.delay(1, 2)
+
+    type(task)
+
+    print(task.state, task.result)
+
+To monitor the status of a task, use its AsyncResult ID from the Flower dashboard UUID column
+
+    from celery.result import AsyncResult
+
+    task = AsyncResult(<<AsyncResult ID>>)
+
+    task.state
+
+    task.result
+
+### Refs
+
+[x] https://testdriven.io/courses/flask-celery/getting-started/
+
+[ ] https://flask.palletsprojects.com/en/3.0.x/patterns/celery/#integrate-celery-with-flask
